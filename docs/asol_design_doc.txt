@@ -1,0 +1,146 @@
+A Liter of Light Solar Streetlamp Design Document
+Andrew Goessling (7/22/15)
+
+==================== Component Selection ====================
+
+Solar Panels
+====================
+For this circuit, there are two parameters of interest when looking at a
+potential solar panel: the open-circuit voltage (Voc) and the short-circuit
+current (Isc).  These parameters will be listed on the back of most panels.
+Some typical values for a "12V 25W solar panel": Voc = 21.6V and Isc = 1.6A.
+Panels are very similar from manufacturer to manufacturer so if these values are
+not listed for the panel in question, checking a similar voltage (volts [V]) and
+power (watts [w]) panel from another manufacturer will suffice.
+
+The ideal solar panel for this circuit is a 12V 25W panel with a Voc = 21.6V and
+an Isc = 1.6A.  Variations from this are possible, but will result in
+sub-optimal performance.  There are two constraints in the charging circuit,
+both related to the LM350 (U1).  The first is open-circuit voltage.  The Voc of
+a potential panel must be between 17V and 33V.  The second constraint is the
+power dissapation in the LM350.  During charging of the battery U1 dissapates
+power and will heat up.  A heatsink is required to keep U1 cool.  A suitable
+heatsink is specified in the Bill of Materials (BOM).  The calculation for the
+power dissapation in the LM350 given a potential panel's Isc and Voc is:
+
+Ploss = Isc * (0.8 * Voc - 13)
+
+Ploss must be under 9W for the LM350 not to overheat.  This assumes the
+suggested heatsink is correctly installed with thermal paste.
+
+Batteries
+====================
+This circuit is designed for lead-acid batteries.  The two relevant parameters
+of lead-acid batteries are voltage [V] and capacity [Ah].  The circuit requires
+the battery voltage to be 12V.  The capacity of the battery will define how long
+it can keep the LED on without being recharged (during overcast or stormy days
+with little sunlight).  The maximum LED runtime (t_led) is a function of the LED
+current (Iled) and the capacity of the battery (Ebatt).  It is given by:
+
+t_led = Ebatt / Iled [hours]
+
+t_led should be at least 16 hours and depending on the application possibly as
+high as 64.  Iled will depend on the LEDs used.  In the default design Iled =
+400mA.  A reasonable starting point for capacity is 18Ah.
+
+LEDs
+====================
+When selecting LEDs, two parameters are important: forward voltage (Vf) and test
+current (Itest).  All LEDs must be connected in series, and the sum of the
+forward voltages must be less than 10V.  In the default driver design, the LED
+drive current is 400mA.  This means that the test current of each LED in series
+must be at least 400mA or higher.  There are typically two LED solutions to
+choose from: LED Chip On Board (COB) or discrete LEDs.  LED COBs have a single
+positive and negative terminal, but internally consist of several LEDs in series
+and parallel.  This means that the forward voltage of COBs are higher than
+discrete LEDs, typically 6V-37V.  In most situations, a single COB is selected
+which has a Vf less than 10V and a Itest greater than or equal to 400mA.  With
+discrete LEDs the sum of the forward voltages must be less than 10V and the test
+current of each LED must be greater than or equal to 400mA.  An arrangement that
+best matches Vf to 10V and Itest to 400mA will operate most efficiently.
+
+LEDs of this current level will require heatsinking of some kind.  See the BOM
+for a suitable LED COB as well as a suitable heatsink.  In addition a suitable
+heatsink for the LED drive transistor (Q4) is specified in the BOM.
+
+
+==================== Circuit Operation and Troubleshooting ====================
+
+Solar Charger
+====================
+The solar panel is connected to the circuit through screw terminals (J1).  The
+positive (red) and negative (black) polarities are marked in silkscreen on the
+PCB.  D1 protects the charging circuit from the reverse connection of the solar
+panel.  The LM350 is a 3A LDO that is used to charge the lead-acid battery at a
+constant current up to a constant voltage.  The constant current is acheived by
+Q1 and R3/4/5.  The battery charging current will increase through R3/4/5 until
+the voltage across the resistors reaches one Vbe (0.6V).  Then Q1 will turn on,
+pulling the ADJ pin of U1 down so that the charging current remains at this
+level.  Hence:
+
+Icharge = Vbe/(R1||R2||R3)
+
+Therefore charging current can be altered by changing the values of R3/4/5.  The
+designed value is 1.8A.  The constant voltage limit is set by R7/8.  U1
+regulates the voltage from OUT to ADJ to be 1.25V.  If Q1 is off then the R7/8
+divider defines this voltage.  Therefore:
+
+Vlimit = 1.25 * (R7 + R8)/R7
+
+Altering R7/8 can change the battery voltage limit for the charger.  The
+designed value is 13.75V.  D2 protects the charger from reverse polarity (marked
+in silkscreen on the PCB) of the battery on the screw terminals (J2).  It also
+protects the charger when the solar panel is absent or not illuminated.
+
+LED Driver
+====================
+The LED is connected to the circuit via screw terminals with the polarity,
+positive (red) and negative (black), marked in silkscreen on the PCB.  D3
+protects the LED driver from the battery being connected in the reverse
+polarity.  The LED driver is designed to only turn on when the sky is dark.  It
+is also designed to only turn on the LED if the battery voltage is above a
+threshold.  It achieves this by measuring the solar panel voltage and battery
+voltage respectively.  D4 is a 4.7V zener diode used as a reference for these
+comparisons.  The solar panel voltage is sensed through R1/2 and compared to a
+divided down version of the 4.7V reference with the comparator U2A.  The
+potentiometer R6 allows the user to change the effective reference voltage, and
+in effect, alter the darkness required to turn on the LEDs.  For example, if the
+potentiometer were in the middle of its range the effective reference voltage
+for U2A would be 4.7/2 = 2.35V.  Therefore the the LED would turn on when the
+solar panel voltage went below:
+
+Vpanel = 2.35 * (R1 + R2)/R2
+
+This relationship is only an approximation due to the hysterisis provided by R9,
+but provides insight into how to change R1/2/6 to adjust the turn on voltage.
+The procedure for setting the potentiometer should go as follows:
+
+  1) Wait for lighting condition that is desired for the LEDs to turn on.
+  2) Turn the potentiometer to its full extent in a direction that results in
+     the LEDs turning off.
+  3) Slowly turn the potentiometer toward the opposite extent until the LEDs
+     turn on.
+  4) Cease turning the potentiometer.
+
+If the solar panel voltage is below the threshold the output of U2A is an
+open-collector and therefore does not affect the R10/11 divider -- giving the
+LEDs the chance to turn on if the battery voltage is above a minimum.  Otherwise
+U2A shorts R11 and prevents the LEDs from being turned on.  The battery voltage
+is sensed through the R10/11 divider and compared to the 4.7V reference by U2B.
+Therefore the minimum battery voltage before the LEDs turn off is:
+
+Vbatt = 4.7 * (R10 + R11)/R11
+
+This relationship is only an approximation due to the hysteresis provided by
+R13/16, but provides insight into how to change R10/11 to adjust the minimum
+battery voltage.  The designed value is 11.5V.  If the battery voltage is above
+the minimum the output of U2B turns on Q2 -- enabling the LED driver.  Much like
+in the charger, Q3 and R19/20/21 determine the LED drive current.  The LED drive
+current will increase through R19/20/21 until the voltage across them reaches
+one Vbe (0.6) therefore turning on Q3 and holding drive current at this value.
+Hence:
+
+Iled = Vbe/(R19||R20||R21)
+
+Therefore LED drive current can be altered by changing the values of R19/20/21.
+The designed value is 333mA.
